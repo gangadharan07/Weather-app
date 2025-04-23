@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weather App</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --text-color: #000;
+      --bg-gradient: linear-gradient(to right, #83a4d4, #b6fbff);
+    }
+    body.dark-mode {
+      --text-color: #fff;
+      --bg-gradient: linear-gradient(to right, #141e30, #243b55);
+    }
+
+    body {
+      font-family: 'Roboto', sans-serif;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+      overflow: auto;
+      height: 100vh;
+      transition: background-color 0.5s ease, color 0.5s ease;
+      background: var(--bg-gradient);
+      color: var(--text-color);
+    }
+
+    .clouds {
+      position: absolute;
+      top: 0;
+      left: -50%;
+      width: 150%;
+      height: 100%;
+      background: url('https://www.transparenttextures.com/patterns/clouds.png');
+      background-repeat: repeat-x;
+      animation: cloudMove 60s linear infinite;
+      opacity: 0.2;
+      z-index: 0;
+    }
+
+    @keyframes cloudMove {
+      0% { left: -50%; }
+      100% { left: 100%; }
+    }
+
+    #weatherApp {
+      position: relative;
+      z-index: 1;
+      max-width: 600px;
+      margin: 60px auto;
+      padding: 35px;
+      border-radius: 20px;
+      backdrop-filter: blur(15px);
+      background-color: rgba(255, 255, 255, 0.1);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    h1, h2, h3, p, li {
+      color: var(--text-color);
+    }
+
+    input, button {
+      width: 100%;
+      padding: 14px;
+      font-size: 16px;
+      border-radius: 12px;
+      margin: 10px 0;
+      box-sizing: border-box;
+      border: none;
+      outline: none;
+    }
+
+    input {
+      background: rgba(255, 255, 255, 0.2);
+      color: var(--text-color);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+    }
+
+    input::placeholder {
+      color: #ccc;
+    }
+
+    button {
+      background: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%);
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.3s ease;
+    }
+
+    button:hover {
+      transform: scale(1.03);
+    }
+
+    #loading {
+      font-size: 18px;
+      margin-top: 20px;
+      display: none;
+    }
+
+    #weatherResult, #forecastResult {
+      margin-top: 20px;
+    }
+
+    .forecast-item {
+      display: inline-block;
+      width: 160px;
+      margin: 10px;
+      padding: 15px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 18px;
+      backdrop-filter: blur(10px);
+      transition: transform 0.3s ease;
+    }
+
+    .forecast-item:hover {
+      transform: scale(1.05);
+    }
+
+    .forecast-item img {
+      width: 60px;
+      height: 60px;
+    }
+
+    #map {
+      height: 300px;
+      margin-top: 20px;
+      border-radius: 12px;
+    }
+
+    .logo {
+      width: 100px;
+      margin: 0 auto 20px;
+    }
+
+    @media (max-width: 600px) {
+      #weatherApp {
+        margin: 30px 15px;
+        padding: 25px;
+      }
+      .forecast-item {
+        width: 130px;
+      }
+    }
+  </style>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+</head>
+<body>
+  <div class="clouds"></div>
+  <div id="weatherApp">
+    <img src="/images/ChatGPT Image Apr 22, 2025, 04_52_57 PM.png" alt="Weather App Logo" class="logo">
+    <h1>Weather App</h1>
+    <input type="text" id="cityInput" placeholder="Enter city name" />
+    <button id="searchButton">Get Weather</button>
+    <button id="geoButton">Use My Location</button>
+    <button id="clearButton">Clear</button>
+    <button id="toggleTheme">Toggle Theme</button>
+
+    <div id="loading">Loading...</div>
+    <div id="weatherResult"></div>
+    <div id="forecastResult"></div>
+
+    <h3>Search History</h3>
+    <ul id="historyList"></ul>
+
+    <div id="map"></div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    const apiKey = "11c9c5ea38cd417788f105410252204";
+
+    async function getWeather(city) {
+      document.getElementById("loading").style.display = "block";
+      document.getElementById("weatherResult").innerHTML = "";
+      document.getElementById("forecastResult").innerHTML = "";
+
+      try {
+        const response = await fetch(`https://api.weatherapi.com/v1/forecast.json?key=${apiKey}&q=${city}&days=1&aqi=no&alerts=no`);
+        const data = await response.json();
+
+        document.getElementById("loading").style.display = "none";
+
+        if (data && data.location) {
+          changeBackground(data.current.condition.text.toLowerCase());
+          const iconUrl = `https:${data.current.condition.icon}`;
+
+          const result = `
+            <h2>${data.location.name}, ${data.location.country}</h2>
+            <img src="${iconUrl}" alt="Weather icon" />
+            <p>Temperature: ${data.current.temp_c} °C</p>
+            <p>Condition: ${data.current.condition.text}</p>
+            <p>Humidity: ${data.current.humidity}%</p>
+            <p>Wind: ${data.current.wind_kph} kph</p>
+          `;
+          document.getElementById("weatherResult").innerHTML = result;
+
+          addToHistory(data.location.name);
+          showForecast(data.forecast.forecastday[0].hour);
+          showMap(data.location.lat, data.location.lon);
+        } else {
+          document.getElementById("weatherResult").innerHTML = "<p>City not found!</p>";
+        }
+      } catch (error) {
+        document.getElementById("loading").style.display = "none";
+        document.getElementById("weatherResult").innerHTML = "<p>Error fetching weather data.</p>";
+      }
+    }
+
+    function showForecast(hours) {
+      const forecastHTML = hours.map(hour => `
+        <div class="forecast-item">
+          <p>${hour.time.split(" ")[1]}</p>
+          <img src="https:${hour.condition.icon}" />
+          <p>${hour.temp_c} °C</p>
+        </div>`).join("");
+      document.getElementById("forecastResult").innerHTML = `<h3>Hourly Forecast</h3>${forecastHTML}`;
+    }
+
+    function showMap(lat, lon) {
+      if (window.mapInstance) {
+        mapInstance.setView([lat, lon], 10);
+        return;
+      }
+      window.mapInstance = L.map('map').setView([lat, lon], 10);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(mapInstance);
+      L.marker([lat, lon]).addTo(mapInstance);
+    }
+
+    function addToHistory(city) {
+      let history = JSON.parse(localStorage.getItem("weatherHistory")) || [];
+      if (!history.includes(city)) {
+        history.unshift(city);
+        if (history.length > 5) history.pop();
+        localStorage.setItem("weatherHistory", JSON.stringify(history));
+      }
+      showHistory();
+    }
+
+    function showHistory() {
+      let history = JSON.parse(localStorage.getItem("weatherHistory")) || [];
+      const list = document.getElementById("historyList");
+      list.innerHTML = "";
+      history.forEach(city => {
+        const li = document.createElement("li");
+        li.textContent = city;
+        li.classList.add("history-item");
+        li.onclick = () => getWeather(city);
+        list.appendChild(li);
+      });
+    }
+
+    function clearResults() {
+      document.getElementById("cityInput").value = "";
+      document.getElementById("weatherResult").innerHTML = "";
+      document.getElementById("forecastResult").innerHTML = "";
+      document.getElementById("loading").style.display = "none";
+    }
+
+    function changeBackground(condition) {
+      // Optional: change background dynamically based on condition
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle("dark-mode");
+    }
+
+    async function getGeoWeather() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(async position => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          await getWeather(`${lat},${lon}`);
+        });
+      }
+    }
+
+    document.getElementById("searchButton").addEventListener("click", () => {
+      const city = document.getElementById("cityInput").value.trim();
+      if (city) getWeather(city);
+    });
+    document.getElementById("clearButton").addEventListener("click", clearResults);
+    document.getElementById("toggleTheme").addEventListener("click", toggleTheme);
+    document.getElementById("geoButton").addEventListener("click", getGeoWeather);
+    window.onload = showHistory;
+  </script>
+</body>
+</html>
