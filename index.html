@@ -289,5 +289,13 @@
     document.getElementById("geoButton").addEventListener("click", getGeoWeather);
     window.onload = showHistory;
   </script>
+  <footer style="margin-top: 40px; color: #fff; font-size: 14px;">
+  &copy; <span id="year"></span> Your Name. All rights reserved.
+</footer>
+
+<script>
+  document.getElementById("year").textContent = new Date().getFullYear();
+</script>
+
 </body>
 </html>
